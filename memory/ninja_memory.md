@@ -34,6 +34,13 @@
 - **Runner: `pytest`** (network-free; mock `requests`/`get_config`/`api_url`).
   `python -m pytest` from repo root. Convention in `tests/README.md`. First
   suite: `tests/test_transcription.py` (16 tests, PR #8).
+- **No CI yet** — tests only run when invoked manually. Issue #10 filed to add
+  `.github/workflows/test.yml` (run pytest on push/PR; no secrets needed).
+
+## Environment facts
+- `~/.agent_settings.json` has only `teams` + `default_agent` — **no whatsapp /
+  slack creds**. So #4 (WhatsApp) can be coded but not verified e2e until creds
+  exist; annotated on the issue. Slack transcribe (#3) likewise unverifiable e2e.
 
 ## Resolved this session
 - #1 (Teams transcribe, PR #2), #3 (Slack transcribe + shared helper, PR #5),
