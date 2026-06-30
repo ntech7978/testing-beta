@@ -14,13 +14,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: infra/requirements.txt
 
-      - name: Install test dependencies
-        # Tests are network-free (requests is mocked), so no secrets are needed.
-        # requests is imported at module load; pytest is the runner.
+      - name: Install dependencies
+        # Install the project's real runtime deps (same list install.sh uses).
+        # Importing a leaf module pulls in its package, so the suite needs the
+        # full dependency set — not a hand-picked subset. Tests are still
+        # network-free (requests/httpx are mocked), so no secrets are needed.
         run: |
           python -m pip install --upgrade pip
-          pip install pytest requests
+          pip install -r infra/requirements.txt
 
       - name: Run tests
         run: python -m pytest -v
