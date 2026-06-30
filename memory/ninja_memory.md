@@ -50,7 +50,8 @@
 ## Resolved this session
 - #1 (Teams transcribe, PR #2), #3 (Slack transcribe + shared helper, PR #5),
   #7 (transcription regression tests, PR #8), #10 (CI, PR #11),
-  #6 (Teams download → graph_fetch de-dup, PR #12).
+  #6 (Teams download → graph_fetch de-dup, PR #12),
+  #13 (lazy channel package imports, PR #14).
 - Built `tools/graph_fetch.py`, `messaging/transcription.py`, `tests/` suite, CI.
 
 ## What to try next
@@ -58,16 +59,18 @@
   off in #3. Watch for the same pattern in the WhatsApp work (#4).
 - New code paths should ship with a network-free pytest now that the convention
   exists.
-- **Import fragility (→ issue #13):** all `messaging/{teams,slack,whatsapp}/
-  __init__.py` eagerly import their interface, so importing a leaf `transcribe`
-  module drags in the full stack (httpx via monitor_service). That forced CI to
-  install all of `infra/requirements.txt`. #13 proposes PEP 562 lazy imports so
-  leaf utils import standalone (and CI could then slim down).
+- **Test-mode env (file in Phase 2):** `messaging/slack/interface.py` does a
+  module-level `Path("/workspace/logs").mkdir(...)` guarded by
+  `NINJA_TEST_MODE != "1"`. CI does NOT set `NINJA_TEST_MODE=1`, so importing the
+  real slack interface in CI raised PermissionError on `/workspace`. Fix: set
+  `NINJA_TEST_MODE=1` in `.github/workflows/test.yml` (and document for local
+  pytest) so interface modules are import-safe under test. Worked around in #13's
+  test by stubbing the interface module, but the env fix is the proper one and
+  unblocks importing real interfaces in tests.
 
 ## Open queue (for next cycles)
 - **#4** WhatsApp transcribe (e2e-blocked on creds; code + mocked tests).
-- **#13** Lazy-import channel package `__init__`s (concrete, verifiable, fully
-  doable — good next pick).
+- (next Phase 2: file the `NINJA_TEST_MODE=1` CI fix above.)
 
 ## Watch-items (not yet issues)
 - **Cycle concurrency:** saw two Phase 2 runs race earlier (duplicate CI issues
