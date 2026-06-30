@@ -14,6 +14,7 @@ Reusable utility tools for the Ninja browser automation agent. Each tool works b
 | `stealth_audit.py` | Browser stealth verification | `python tools/stealth_audit.py` |
 | `session_manager.py` | Save/restore browser sessions | `python tools/session_manager.py list` |
 | `message_sanitizer.py` | Strip LLM artifacts from text | `python tools/message_sanitizer.py "text"` |
+| `graph_fetch.py` | Download a Teams/SharePoint attachment (downloadUrl **or** path URL) via direct GET → Graph `/shares` fallback | `python tools/graph_fetch.py "<url>" -o out.bin --json` |
 
 `pdx.py` is installed as `/usr/local/bin/pdx` by `install.sh`; see `agent-docs/PIPEDREAM_CONNECT.md`.
 
