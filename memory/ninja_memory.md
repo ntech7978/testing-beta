@@ -58,3 +58,21 @@
   off in #3. Watch for the same pattern in the WhatsApp work (#4).
 - New code paths should ship with a network-free pytest now that the convention
   exists.
+- **Import fragility (→ issue #13):** all `messaging/{teams,slack,whatsapp}/
+  __init__.py` eagerly import their interface, so importing a leaf `transcribe`
+  module drags in the full stack (httpx via monitor_service). That forced CI to
+  install all of `infra/requirements.txt`. #13 proposes PEP 562 lazy imports so
+  leaf utils import standalone (and CI could then slim down).
+
+## Open queue (for next cycles)
+- **#4** WhatsApp transcribe (e2e-blocked on creds; code + mocked tests).
+- **#13** Lazy-import channel package `__init__`s (concrete, verifiable, fully
+  doable — good next pick).
+
+## Watch-items (not yet issues)
+- **Cycle concurrency:** saw two Phase 2 runs race earlier (duplicate CI issues
+  #9/#10, dueling memory edits). No obvious `.orchestrator.lock` bug in
+  `processes/`/`services/` (only heartbeat files in health_service.py). Might be
+  a harness/replay artifact rather than a prod lock failure. If duplicate issues
+  recur, investigate the single-instance lock before filing fixes. Always treat
+  `gh issue list` as ground truth over memory.
