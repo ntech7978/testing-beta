@@ -8,6 +8,11 @@ on:
 jobs:
   pytest:
     runs-on: ubuntu-latest
+    env:
+      # Honor the module-level test guard (e.g. messaging/slack/interface.py
+      # skips its /workspace/logs mkdir when this is set), so importing real
+      # interface modules is safe in CI where the checkout isn't under /workspace.
+      NINJA_TEST_MODE: "1"
     steps:
       - uses: actions/checkout@v4
 
