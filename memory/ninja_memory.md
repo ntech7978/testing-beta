@@ -34,8 +34,9 @@
 - **Runner: `pytest`** (network-free; mock `requests`/`get_config`/`api_url`).
   `python -m pytest` from repo root. Convention in `tests/README.md`. First
   suite: `tests/test_transcription.py` (16 tests, PR #8).
-- **No CI yet** — tests only run when invoked manually. Issue #10 filed to add
+- **No CI yet** — tests only run when invoked manually. Issue #9 filed to add
   `.github/workflows/test.yml` (run pytest on push/PR; no secrets needed).
+  (#10 was a same-session duplicate of #9 — closed.)
 
 ## Environment facts
 - `~/.agent_settings.json` has only `teams` + `default_agent` — **no whatsapp /
