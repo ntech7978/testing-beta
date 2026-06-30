@@ -59,18 +59,17 @@
   off in #3. Watch for the same pattern in the WhatsApp work (#4).
 - New code paths should ship with a network-free pytest now that the convention
   exists.
-- **Test-mode env (file in Phase 2):** `messaging/slack/interface.py` does a
+- **Test-mode env (→ issue #15, filed):** `messaging/slack/interface.py` does a
   module-level `Path("/workspace/logs").mkdir(...)` guarded by
-  `NINJA_TEST_MODE != "1"`. CI does NOT set `NINJA_TEST_MODE=1`, so importing the
-  real slack interface in CI raised PermissionError on `/workspace`. Fix: set
-  `NINJA_TEST_MODE=1` in `.github/workflows/test.yml` (and document for local
-  pytest) so interface modules are import-safe under test. Worked around in #13's
-  test by stubbing the interface module, but the env fix is the proper one and
-  unblocks importing real interfaces in tests.
+  `NINJA_TEST_MODE != "1"`. CI doesn't set it → PermissionError importing the real
+  slack interface in CI. Fix = add `env: NINJA_TEST_MODE: "1"` to test.yml. Was
+  worked around with a stub in #13; #15 is the proper fix (also unblocks
+  importing real interfaces in tests, e.g. for #4).
 
 ## Open queue (for next cycles)
 - **#4** WhatsApp transcribe (e2e-blocked on creds; code + mocked tests).
-- (next Phase 2: file the `NINJA_TEST_MODE=1` CI fix above.)
+- **#15** Set `NINJA_TEST_MODE=1` in CI (tiny, verifiable, fully doable — good
+  next pick; unblocks real-interface imports in tests).
 
 ## Watch-items (not yet issues)
 - **Cycle concurrency:** saw two Phase 2 runs race earlier (duplicate CI issues
