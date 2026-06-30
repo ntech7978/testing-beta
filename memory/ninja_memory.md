@@ -51,8 +51,11 @@
 - #1 (Teams transcribe, PR #2), #3 (Slack transcribe + shared helper, PR #5),
   #7 (transcription regression tests, PR #8), #10 (CI, PR #11),
   #6 (Teams download → graph_fetch de-dup, PR #12),
-  #13 (lazy channel package imports, PR #14).
+  #13 (lazy channel package imports, PR #14),
+  #15 (NINJA_TEST_MODE=1 in CI + conftest, PR #16).
 - Built `tools/graph_fetch.py`, `messaging/transcription.py`, `tests/` suite, CI.
+- **Test setup:** root `conftest.py` sets `NINJA_TEST_MODE=1` before imports;
+  real interfaces are now importable under test (`tests/test_interface_imports.py`).
 
 ## What to try next
 - Prefer fixing duplication at the root (shared helper) over copy-paste — paid
@@ -67,9 +70,10 @@
   importing real interfaces in tests, e.g. for #4).
 
 ## Open queue (for next cycles)
-- **#4** WhatsApp transcribe (e2e-blocked on creds; code + mocked tests).
-- **#15** Set `NINJA_TEST_MODE=1` in CI (tiny, verifiable, fully doable — good
-  next pick; unblocks real-interface imports in tests).
+- **#4** WhatsApp transcribe (e2e-blocked on creds; code + mocked tests). Now
+  that real interfaces import under test (#15), WhatsApp tests can import the
+  real interface if helpful. Still: do NOT re-hardcode the model; reuse
+  `messaging/transcription.py`. Likely ends in `block` (no creds for live e2e).
 
 ## Watch-items (not yet issues)
 - **Cycle concurrency:** saw two Phase 2 runs race earlier (duplicate CI issues
