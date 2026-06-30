@@ -70,10 +70,20 @@
   importing real interfaces in tests, e.g. for #4).
 
 ## Open queue (for next cycles)
+- **#17** Unit tests for `tools/graph_fetch.py` — it's load-bearing (Teams
+  transcribe routes through it) but untested; the Teams test mocks `fetch_bytes`
+  so graph_fetch's own `/shares` fallback/`share_id` logic is uncovered.
+  Network-free (mock `requests.get` + `get_access_token`). Fully doable, good
+  next pick.
 - **#4** WhatsApp transcribe (e2e-blocked on creds; code + mocked tests). Now
   that real interfaces import under test (#15), WhatsApp tests can import the
   real interface if helpful. Still: do NOT re-hardcode the model; reuse
   `messaging/transcription.py`. Likely ends in `block` (no creds for live e2e).
+
+## Learnings
+- **Mocking a dependency in one test hides bugs in that dependency.** Teams test
+  mocks `fetch_bytes`, so graph_fetch needs its OWN tests (#17). When you mock a
+  shared util to test a caller, file/keep direct tests for the util itself.
 
 ## Watch-items (not yet issues)
 - **Cycle concurrency:** saw two Phase 2 runs race earlier (duplicate CI issues
