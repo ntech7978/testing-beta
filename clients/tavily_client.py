@@ -4,7 +4,7 @@ Tavily MCP Client - Python wrapper for all Tavily MCP tools.
 Uses the LiteLLM gateway's /mcp-rest/tools/call endpoint.
 
 Credentials are read from settings.json (same file used by claude-wrapper.sh)
-via the shared utils/litellm_client module.
+via the shared clients/litellm_client module.
 
 Usage:
     from clients.tavily_client import Tavily

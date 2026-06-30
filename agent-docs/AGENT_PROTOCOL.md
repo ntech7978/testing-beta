@@ -429,7 +429,7 @@ report = tavily.research("Research topic description")
 
 ### Credentials
 
-Tavily reads from `settings.json` (the same file used by `claude-wrapper.sh`) via the `utils/litellm_client` module. **No manual API key setup needed.**
+Tavily reads from `settings.json` (the same file used by `claude-wrapper.sh`) via the `clients.litellm_client` module. **No manual API key setup needed.**
 
 ### When to Use Tavily vs Internet Search
 
@@ -462,7 +462,7 @@ from utils.chat import chat, chat_json, chat_stream     # Text generation
 from utils.images import generate_image, generate_images, edit_image  # Image generation + multi-reference editing
 from utils.video import generate_video                     # Video generation
 from utils.embeddings import embed, cosine_similarity      # Embeddings
-from utils.litellm_client import resolve_model, get_config # Config & model aliases
+from clients.litellm_client import resolve_model, get_config # Config & model aliases
 from tavily_client import Tavily                           # Web research
 ```
 

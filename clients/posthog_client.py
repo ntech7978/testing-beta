@@ -135,7 +135,7 @@ def capture(
     props = {**(properties or {})}
 
     if _is_local():
-        props["sandbox_id"] = "local_dev"
+        props["ninja_sandbox_id"] = "local_dev"
         distinct_id = f"local-{os.environ.get('NINJA_USER_ID', 'unknown')}"
         print(
             f"[posthog] capture(distinct_id={distinct_id!r}, event={event!r}, properties={props})"
@@ -147,7 +147,10 @@ def capture(
     if not metadata:
         return
 
-    props["sandbox_id"] = (ph_meta or {}).get("sandbox_id", "")
+    props["ninja_sandbox_id"] = (ph_meta or {}).get("sandbox_id", "")
+    props["ninja_sandbox_provider"] = metadata.get("sandbox_provider", "unknown")
+    props["ninja_thread_id"] = metadata["thread_id"]
+    props["ninja_user_id"] = metadata.get("user_id", "unknown")
     distinct_id = metadata["thread_id"]
 
     get_posthog_client().capture(

@@ -168,7 +168,7 @@ These models accept embedding requests via `/v1/embeddings`.
 The utility library supports short aliases. Use `resolve_model()` to convert:
 
 ```python
-from utils.litellm_client import resolve_model
+from clients.litellm_client import resolve_model
 
 resolve_model("claude-opus")    # → "claude-opus-4-8"
 resolve_model("claude-sonnet")  # → "claude-sonnet-4-6"

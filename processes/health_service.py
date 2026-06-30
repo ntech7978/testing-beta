@@ -34,11 +34,11 @@ import urllib.request
 from pathlib import Path
 
 from browser.browser_server import PSIPHON_HOST, PSIPHON_PORT, PSIPHON_PROXY
+from clients.litellm_client import api_url, get_config, get_headers
 from clients.posthog_client import capture
 from messaging import get_messaging_interface
 from processes.monitor import MONITOR_HEARTBEAT_FILE
 from tools.token_health import check_github_token
-from utils.litellm_client import api_url, get_config, get_headers
 from utils.pipedream import PipedreamClient
 
 # How often to check, in seconds.

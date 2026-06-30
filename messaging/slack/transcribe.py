@@ -9,7 +9,7 @@ Usage:
 
 Auth:
     Reads ``bot_token`` from ``~/.agent_settings.json``.
-    The LiteLLM API key is read via ``utils.litellm_client.get_config()``.
+    The LiteLLM API key is read via ``clients.litellm_client.get_config()``.
 
 Exit codes:
     0  — transcript printed to stdout
@@ -21,7 +21,7 @@ import sys
 from pathlib import Path
 
 import requests
-from utils.litellm_client import api_url, get_config
+from clients.litellm_client import api_url, get_config
 
 
 def transcribe(download_url: str) -> str:

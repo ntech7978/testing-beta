@@ -10,19 +10,28 @@ from everything it *is* (poll loop, rate-limit backoff, SIGHUP wiring).
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import Optional
 
+import httpx
+from clients.litellm_client import api_url, get_config, get_headers
 from clients.posthog_client import capture
 from clients.super_ninja_client import get_super_ninja_url
 
 # REPO_ROOT is the src/ninja/ package root — used to locate claude-wrapper.sh
 _REPO_ROOT = Path(__file__).parent.parent
 
+_TITLE_SYSTEM_PROMPT = "You are a helpful assistant that generates extremely concise titles (2-4 words maximum) for tasks based on the user's message. Respond with only the title, no other text or punctuation."
+_TITLE_USER_PROMPT = "Generate an extremely brief title (2-4 words only) for a task that starts with this message:\n{prompt}"
+
+LITELLM_SPENDING_UPDATE_INTERVAL_SECONDS = 5
+TASK_LOG_FILE = Path("/workspace/ninja/src/ninja/.task_log.jsonl")
 
 # ---------------------------------------------------------------------------
 # Credit / subprocess error classification
@@ -39,6 +48,101 @@ def is_customer_key_error(output: str) -> bool:
     return ("400" in lower and "budget has been exceeded" in lower) or (
         "402" in lower and "customer keys are not active" in lower
     )
+
+
+def get_current_spend() -> float:
+    """Return the cumulative key spend from the gateway /key/info endpoint."""
+    try:
+        cfg = get_config()
+        resp = httpx.get(
+            api_url("/key/info"),
+            params={"key": cfg["api_key"]},
+            headers={"Authorization": f"Bearer {cfg['api_key']}"},
+            timeout=10.0,
+        )
+        return float(resp.json()["info"]["spend"])
+    except Exception as e:
+        print(f"⚠️ Could not get spend: {e}", file=sys.stderr)
+        return 0.0
+
+
+def _write_task_log(texts: list[str], started_at: float, cost: float) -> None:
+    """Find the JSONL written by Claude during this invocation, extract last prompt UUID, write task log."""
+    try:
+        claude_projects = Path.home() / ".claude" / "projects"
+        newest_file, newest_mtime = None, 0.0
+        for f in claude_projects.rglob("*.jsonl"):
+            mtime = f.stat().st_mtime
+            if mtime >= started_at and mtime > newest_mtime:
+                newest_file, newest_mtime = f, mtime
+
+        prompt_uuid = None
+        if newest_file:
+            with open(newest_file, "r", encoding="utf-8", errors="ignore") as f:
+                for line in f:
+                    try:
+                        entry = json.loads(line)
+                        if entry.get("type") == "user" and isinstance(
+                            entry.get("message", {}).get("content"), str
+                        ):
+                            prompt_uuid = entry.get(
+                                "uuid"
+                            )  # keep updating → last one wins
+                    except json.JSONDecodeError:
+                        pass
+
+        if prompt_uuid:
+            combined = " | ".join(texts) if texts else ""
+            title = generate_task_title(combined) if combined else None
+            if not title:
+                title = (
+                    (combined[:50] + "…")
+                    if len(combined) > 50
+                    else combined or "User prompt"
+                )
+            entry: dict = {
+                "id": prompt_uuid,
+                "texts": texts,
+                "cost": cost,
+                "title": title,
+            }
+            with open(_REPO_ROOT / ".task_log.jsonl", "a", encoding="utf-8") as f:
+                f.write(json.dumps(entry) + "\n")
+            print(
+                f"📝 Task log written: uuid={prompt_uuid} title={title!r} cost=${cost:.6f}",
+                flush=True,
+            )
+    except Exception as e:
+        print(f"⚠️ Could not write task log: {e}", file=sys.stderr)
+
+
+def generate_task_title(prompt: str) -> str | None:
+    """Call LiteLLM to generate a 2-4 word title for the given prompt."""
+    try:
+        resp = httpx.post(
+            api_url("/v1/chat/completions"),
+            headers=get_headers(),
+            json={
+                "model": "claude-haiku-4-5-20251001",
+                "messages": [
+                    {"role": "system", "content": _TITLE_SYSTEM_PROMPT},
+                    {
+                        "role": "user",
+                        "content": _TITLE_USER_PROMPT.format(prompt=prompt),
+                    },
+                ],
+                "max_tokens": 20,
+                "temperature": 0.7,
+            },
+            timeout=10.0,
+        )
+        title = (
+            resp.json()["choices"][0]["message"]["content"].strip().strip("'\" \n\t")
+        )
+        return title or None
+    except Exception as e:
+        print(f"⚠️ Could not generate task title: {e}", file=sys.stderr)
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -254,6 +358,10 @@ def run_batched_response(
         flush=True,
     )
 
+    texts = [msg.get("text", "") for msg in pending_messages if msg.get("text")]
+    before_spend = get_current_spend()
+    started_at = time.time()
+
     try:
         result = subprocess.run(
             [str(_REPO_ROOT / "claude-wrapper.sh"), "-c", "-p", prompt],
@@ -268,6 +376,18 @@ def run_batched_response(
             + output.count("✅")
             + output.count("Timestamp:")
         )
+
+        def _record_cost():
+            task_cost = 0.0
+            while task_cost <= 0:
+                # get_current_spend calls an API that guarantees eventual-consistency
+                # it needs to time.sleep() to get updated spending (it's temporary till we find a better approach)
+                time.sleep(LITELLM_SPENDING_UPDATE_INTERVAL_SECONDS)
+                after_spend = get_current_spend()
+                task_cost = max(0.0, after_spend - before_spend)
+            _write_task_log(texts, started_at, task_cost)
+
+        threading.Thread(target=_record_cost, daemon=True).start()
 
         if is_customer_key_error(output):
             raise RunOutOfCreditsException
