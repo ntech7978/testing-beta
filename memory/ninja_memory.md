@@ -25,19 +25,23 @@
 ## Pending Items (work queue — one issue per cycle)
 - **Issue #4** — WhatsApp `transcribe.py` is an unimplemented stub. Implement
   using the now-existing `messaging/transcription.py` (do NOT re-hardcode the
-  model). Needs WhatsApp media-download (token + media URL).
+  model). Needs WhatsApp media-download (token + media URL) — may block on creds.
 - **Issue #6** — De-dup: route Teams `transcribe.py` download through
-  `tools/graph_fetch.py` (`_share_id`/`_download_audio` now duplicate it).
-- **Issue #7** — Add regression tests for `messaging/transcription.py` (repo has
-  NO test suite; transcription broke twice). Network-free, mock `requests.post`;
-  the key assertion is `model == openai/openai/gpt-4o-transcribe` (catches a
-  whisper-1 regression).
+  `tools/graph_fetch.py` (`_share_id`/`_download_audio` now duplicate it). When
+  done, add a test asserting Teams uses `graph_fetch.fetch_bytes`.
+
+## Testing
+- **Runner: `pytest`** (network-free; mock `requests`/`get_config`/`api_url`).
+  `python -m pytest` from repo root. Convention in `tests/README.md`. First
+  suite: `tests/test_transcription.py` (16 tests, PR #8).
 
 ## Resolved this session
-- #1 (Teams transcribe, PR #2), #3 (Slack transcribe + shared helper, PR #5).
-- Built `tools/graph_fetch.py` and `messaging/transcription.py`.
+- #1 (Teams transcribe, PR #2), #3 (Slack transcribe + shared helper, PR #5),
+  #7 (transcription regression tests, PR #8).
+- Built `tools/graph_fetch.py`, `messaging/transcription.py`, `tests/` suite.
 
 ## What to try next
 - Prefer fixing duplication at the root (shared helper) over copy-paste — paid
   off in #3. Watch for the same pattern in the WhatsApp work (#4).
-- No CI/test runner exists yet; #7 should establish the `pytest` convention.
+- New code paths should ship with a network-free pytest now that the convention
+  exists.
