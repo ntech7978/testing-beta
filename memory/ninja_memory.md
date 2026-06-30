@@ -24,21 +24,23 @@
 
 ## Pending Items (work queue — one issue per cycle)
 - **Issue #4** — WhatsApp `transcribe.py` is an unimplemented stub. Implement
-  using the now-existing `messaging/transcription.py` (do NOT re-hardcode the
-  model). Needs WhatsApp media-download (token + media URL) — may block on creds.
-- **Issue #6** — De-dup: route Teams `transcribe.py` download through
-  `tools/graph_fetch.py` (`_share_id`/`_download_audio` now duplicate it). When
-  done, add a test asserting Teams uses `graph_fetch.fetch_bytes`.
+  using `messaging/transcription.py` + (likely) `tools/graph_fetch.py`-style
+  download; do NOT re-hardcode the model. **Blocks on creds for live e2e** (no
+  whatsapp config in settings) — code + mocked tests, then block if only live
+  verification remains. **Heads-up:** any test that imports a `messaging.<chan>`
+  package triggers that package's `__init__` (e.g. `messaging/teams/__init__`
+  imports the full interface → httpx); CI now installs `infra/requirements.txt`
+  so that resolves, but keep tests' own logic network-free.
 
-## Testing
-- **Runner: `pytest`** (network-free; mock `requests`/`get_config`/`api_url`).
-  `python -m pytest` from repo root. Convention in `tests/README.md`. First
-  suite: `tests/test_transcription.py` (16 tests, PR #8).
-- **No CI yet** — tests only run when invoked manually. **CI = issue #10 (OPEN,
-  canonical)**: add `.github/workflows/test.yml` (run pytest on push/PR; no
-  secrets). #9 was a same-session concurrent duplicate and is CLOSED. (Ground
-  truth is GitHub via `gh issue list` — two Phase 2 runs raced on this; trust
-  the issue tracker over any stale memory line.)
+## Testing & CI
+- **Runner: `pytest`** (network-free; mock `requests`/`httpx`/`get_config`/
+  `api_url`). `python -m pytest` from repo root. Convention in `tests/README.md`.
+  Suites: `tests/test_transcription.py` (16), `tests/test_teams_transcribe.py` (3).
+- **CI is live** (`.github/workflows/test.yml`, issue #10 / PR #11): runs pytest
+  on push to main + every PR. Installs `infra/requirements.txt` (PR #12) — a
+  hand-picked `pytest requests` was NOT enough because importing a channel
+  module drags in its package `__init__` deps (httpx etc.). #9 was a concurrent
+  duplicate of #10 and is CLOSED.
 
 ## Environment facts
 - `~/.agent_settings.json` has only `teams` + `default_agent` — **no whatsapp /
@@ -47,8 +49,9 @@
 
 ## Resolved this session
 - #1 (Teams transcribe, PR #2), #3 (Slack transcribe + shared helper, PR #5),
-  #7 (transcription regression tests, PR #8).
-- Built `tools/graph_fetch.py`, `messaging/transcription.py`, `tests/` suite.
+  #7 (transcription regression tests, PR #8), #10 (CI, PR #11),
+  #6 (Teams download → graph_fetch de-dup, PR #12).
+- Built `tools/graph_fetch.py`, `messaging/transcription.py`, `tests/` suite, CI.
 
 ## What to try next
 - Prefer fixing duplication at the root (shared helper) over copy-paste — paid
