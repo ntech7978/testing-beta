@@ -1,0 +1,26 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install test dependencies
+        # Tests are network-free (requests is mocked), so no secrets are needed.
+        # requests is imported at module load; pytest is the runner.
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest requests
+
+      - name: Run tests
+        run: python -m pytest -v
