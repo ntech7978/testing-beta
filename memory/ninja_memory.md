@@ -22,12 +22,22 @@
   through it (PR #5). Each channel only does its own download. WhatsApp (#4)
   should reuse it too — do NOT re-hardcode the model.
 
-## Pending Items
-- **Issue #3** (filed) — Slack `transcribe.py:70` has the same `whisper-1` bug →
-  401. Its download uses a Slack bot token (not Graph), so only the model needs
-  fixing. Suggested a shared `transcribe_bytes()` helper to stop drift.
-- **Issue #4** (filed) — WhatsApp `transcribe.py` is an unimplemented stub.
-- **Toolkit idea** (captured in #3): extract one shared transcription helper
-  (owns model id `openai/openai/gpt-4o-transcribe` + `/v1/audio/transcriptions`
-  endpoint) so Teams/Slack/WhatsApp can't diverge again. Build it when #3 is
-  worked, not before.
+## Pending Items (work queue — one issue per cycle)
+- **Issue #4** — WhatsApp `transcribe.py` is an unimplemented stub. Implement
+  using the now-existing `messaging/transcription.py` (do NOT re-hardcode the
+  model). Needs WhatsApp media-download (token + media URL).
+- **Issue #6** — De-dup: route Teams `transcribe.py` download through
+  `tools/graph_fetch.py` (`_share_id`/`_download_audio` now duplicate it).
+- **Issue #7** — Add regression tests for `messaging/transcription.py` (repo has
+  NO test suite; transcription broke twice). Network-free, mock `requests.post`;
+  the key assertion is `model == openai/openai/gpt-4o-transcribe` (catches a
+  whisper-1 regression).
+
+## Resolved this session
+- #1 (Teams transcribe, PR #2), #3 (Slack transcribe + shared helper, PR #5).
+- Built `tools/graph_fetch.py` and `messaging/transcription.py`.
+
+## What to try next
+- Prefer fixing duplication at the root (shared helper) over copy-paste — paid
+  off in #3. Watch for the same pattern in the WhatsApp work (#4).
+- No CI/test runner exists yet; #7 should establish the `pytest` convention.
