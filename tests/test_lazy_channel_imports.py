@@ -40,12 +40,21 @@ def test_leaf_import_does_not_load_interface(pkg, leaf, interface_mod, _iface):
 
 
 @pytest.mark.parametrize("pkg,_leaf,interface_mod,iface", CHANNELS)
-def test_interface_export_still_resolves_lazily(pkg, _leaf, interface_mod, iface):
+def test_interface_export_resolves_via_getattr(monkeypatch, pkg, _leaf, interface_mod, iface):
+    # Verify the __init__ lazy WIRING: accessing `<pkg>.<Iface>` pulls the name
+    # from `<pkg>.interface`. Stub that interface module so the test stays
+    # hermetic — independent of the real interface's import-time side effects
+    # (e.g. slack/interface.py touches the filesystem at import; see separate bug).
+    import types
+
     package = importlib.import_module(pkg)
-    # Accessing the export triggers __getattr__, which imports the interface.
-    obj = getattr(package, iface)
-    assert obj.__name__ == iface
-    assert interface_mod in sys.modules
+    stub = types.ModuleType(interface_mod)
+    sentinel = type(iface, (), {})
+    setattr(stub, iface, sentinel)
+    monkeypatch.setitem(sys.modules, interface_mod, stub)
+
+    obj = getattr(package, iface)  # triggers __getattr__ → from <pkg>.interface import <Iface>
+    assert obj is sentinel
 
 
 @pytest.mark.parametrize("pkg", [c[0] for c in CHANNELS])
