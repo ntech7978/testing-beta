@@ -13,11 +13,10 @@ Auth:
     ``clients.litellm_client.get_config()``.
 
 Download:
-    Pre-authenticated ``@microsoft.graph.downloadUrl`` links are fetched
-    directly. SharePoint/Graph *path* URLs (e.g. ``contentUrl`` ending in
-    ``/Shared Documents/...``) return 401 on a plain GET, so we fall back to the
-    Graph ``/shares/{share_id}/driveItem/content`` endpoint which accepts any
-    sharing or path URL.
+    Delegated to ``tools.graph_fetch.fetch_bytes`` — it handles pre-authenticated
+    ``@microsoft.graph.downloadUrl`` links and falls back to the Graph
+    ``/shares/{share_id}/driveItem/content`` endpoint for SharePoint *path* URLs
+    (which 401 on a plain GET). It also loads the ``teams.access_token``.
 
 Model:
     Defaults to ``openai/openai/gpt-4o-transcribe`` (the transcription model the
@@ -29,61 +28,11 @@ Exit codes:
     1  — missing argument, download failure, or transcription failure
 """
 
-import base64
-import json
 import sys
-from pathlib import Path
 
 import requests
 from messaging.transcription import audio_ext, transcribe_bytes
-
-
-def _share_id(url: str) -> str:
-    """Encode a sharing/path URL as a Graph share id (``u!<base64url>``)."""
-    b64 = base64.urlsafe_b64encode(url.encode("utf-8")).decode("ascii").rstrip("=")
-    return "u!" + b64
-
-
-def _download_audio(download_url: str, access_token: str) -> requests.Response:
-    """Fetch the audio bytes, resolving SharePoint path URLs via Graph /shares.
-
-    Args:
-        download_url: The attachment URL (downloadUrl or SharePoint/Graph path).
-        access_token: Microsoft Graph bearer token.
-
-    Returns:
-        The successful :class:`requests.Response` holding the audio bytes.
-
-    Raises:
-        RuntimeError: If both the direct and Graph /shares downloads fail.
-    """
-    headers = {"Authorization": f"Bearer {access_token}"}
-
-    # 1. Direct GET — works for pre-authenticated @microsoft.graph.downloadUrls.
-    resp = requests.get(download_url, headers=headers, timeout=60)
-    if resp.ok:
-        return resp
-
-    # 2. SharePoint/Graph path URLs 401/403 on a plain GET. Resolve them through
-    #    the Graph /shares endpoint, which accepts any sharing or path URL.
-    if resp.status_code in (401, 403):
-        share_url = (
-            "https://graph.microsoft.com/v1.0/shares/"
-            f"{_share_id(download_url)}/driveItem/content"
-        )
-        shared = requests.get(
-            share_url, headers=headers, timeout=60, allow_redirects=True
-        )
-        if shared.ok:
-            return shared
-        raise RuntimeError(
-            f"Audio download failed — direct GET ({resp.status_code}) and Graph "
-            f"/shares ({shared.status_code}): {shared.text[:200]}"
-        )
-
-    raise RuntimeError(
-        f"Audio download failed ({resp.status_code}): {resp.text[:200]}"
-    )
+from tools.graph_fetch import fetch_bytes
 
 
 def transcribe(download_url: str) -> str:
@@ -99,32 +48,19 @@ def transcribe(download_url: str) -> str:
     Raises:
         RuntimeError: If the download or transcription request fails.
     """
-    # --- auth ---
-    settings_path = Path.home() / ".agent_settings.json"
-    try:
-        settings = json.loads(settings_path.read_text())
-    except (OSError, json.JSONDecodeError) as exc:
-        raise RuntimeError(f"Cannot read {settings_path}: {exc}") from exc
-
-    access_token = (settings.get("teams") or {}).get("access_token", "")
-    if not access_token:
-        raise RuntimeError(
-            f"No 'teams.access_token' found in {settings_path}. "
-            "Run: python messaging/teams/interface.py config --set-access-token <token>"
-        )
-
     # --- download audio ---
-    audio_resp = _download_audio(download_url, access_token)
+    # tools.graph_fetch owns auth (teams.access_token) + the direct-GET → Graph
+    # /shares fallback for SharePoint path URLs, and returns (bytes, content_type).
+    content, content_type = fetch_bytes(download_url)
 
-    # Name the upload with an extension the model recognizes, derived from the
-    # download response's content type (Teams voice notes are typically audio/mp4).
-    content_type = (audio_resp.headers.get("Content-Type") or "audio/mp4").split(";")[
-        0
-    ].strip() or "audio/mp4"
+    # Teams voice notes are typically mp4; fall back to that when the server omits
+    # a usable content type, then name the upload with a recognized extension.
+    if not content_type or content_type == "application/octet-stream":
+        content_type = "audio/mp4"
     ext = audio_ext(download_url, content_type)
 
     # --- transcribe ---
-    return transcribe_bytes(audio_resp.content, f"audio{ext}", content_type)
+    return transcribe_bytes(content, f"audio{ext}", content_type)
 
 
 if __name__ == "__main__":
