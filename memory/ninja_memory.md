@@ -18,6 +18,11 @@
   (doubled prefix) is the working id. `whisper-1` / un-prefixed names → 401.
 
 ## Pending Items
-- Slack/WhatsApp `transcribe.py` variants likely share the same two bugs
-  (whisper-1 + direct-GET download). Not in scope for issue #1 — file a follow-up
-  if those channels are used. Could also refactor them onto `graph_fetch.py`.
+- **Issue #3** (filed) — Slack `transcribe.py:70` has the same `whisper-1` bug →
+  401. Its download uses a Slack bot token (not Graph), so only the model needs
+  fixing. Suggested a shared `transcribe_bytes()` helper to stop drift.
+- **Issue #4** (filed) — WhatsApp `transcribe.py` is an unimplemented stub.
+- **Toolkit idea** (captured in #3): extract one shared transcription helper
+  (owns model id `openai/openai/gpt-4o-transcribe` + `/v1/audio/transcriptions`
+  endpoint) so Teams/Slack/WhatsApp can't diverge again. Build it when #3 is
+  worked, not before.
