@@ -34,9 +34,11 @@
 - **Runner: `pytest`** (network-free; mock `requests`/`get_config`/`api_url`).
   `python -m pytest` from repo root. Convention in `tests/README.md`. First
   suite: `tests/test_transcription.py` (16 tests, PR #8).
-- **No CI yet** — tests only run when invoked manually. Issue #9 filed to add
-  `.github/workflows/test.yml` (run pytest on push/PR; no secrets needed).
-  (#10 was a same-session duplicate of #9 — closed.)
+- **No CI yet** — tests only run when invoked manually. **CI = issue #10 (OPEN,
+  canonical)**: add `.github/workflows/test.yml` (run pytest on push/PR; no
+  secrets). #9 was a same-session concurrent duplicate and is CLOSED. (Ground
+  truth is GitHub via `gh issue list` — two Phase 2 runs raced on this; trust
+  the issue tracker over any stale memory line.)
 
 ## Environment facts
 - `~/.agent_settings.json` has only `teams` + `default_agent` — **no whatsapp /
