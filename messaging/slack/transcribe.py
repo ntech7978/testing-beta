@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Transcribe a Slack audio/voice message to text.
 
-Downloads the audio file using the Slack bot token, then sends it to the
-LiteLLM transcription endpoint (Whisper). Prints the transcript to stdout.
+Downloads the audio file using the Slack bot token, then transcribes the bytes
+via the shared transcription core. Prints the transcript to stdout.
 
 Usage:
     python messaging/slack/transcribe.py <download_url>
@@ -10,6 +10,11 @@ Usage:
 Auth:
     Reads ``bot_token`` from ``~/.agent_settings.json``.
     The LiteLLM API key is read via ``clients.litellm_client.get_config()``.
+
+Model:
+    Uses ``messaging.transcription`` (default ``openai/openai/gpt-4o-transcribe``;
+    override with ``NINJA_TRANSCRIBE_MODEL``). ``whisper-1`` is not reachable by
+    the gateway key.
 
 Exit codes:
     0  — transcript printed to stdout
@@ -21,7 +26,7 @@ import sys
 from pathlib import Path
 
 import requests
-from clients.litellm_client import api_url, get_config
+from messaging.transcription import audio_ext, transcribe_bytes
 
 
 def transcribe(download_url: str) -> str:
@@ -37,7 +42,6 @@ def transcribe(download_url: str) -> str:
         RuntimeError: If the download or transcription request fails.
     """
     # --- auth ---
-    cfg = get_config()
     settings_path = Path.home() / ".agent_settings.json"
     try:
         settings = json.loads(settings_path.read_text())
@@ -63,23 +67,11 @@ def transcribe(download_url: str) -> str:
         )
 
     # --- transcribe ---
-    transcription_resp = requests.post(
-        api_url("/v1/audio/transcriptions"),
-        headers={"Authorization": f"Bearer {cfg['api_key']}"},
-        files={"file": ("audio.webm", audio_resp.content, "audio/webm")},
-        data={"model": "whisper-1"},
-        timeout=120,
-    )
-    if not transcription_resp.ok:
-        raise RuntimeError(
-            f"Transcription failed ({transcription_resp.status_code}): "
-            f"{transcription_resp.text[:200]}"
-        )
-
-    text = transcription_resp.json().get("text", "")
-    if not text:
-        raise RuntimeError("Transcription returned empty text.")
-    return text
+    content_type = (audio_resp.headers.get("Content-Type") or "audio/webm").split(";")[
+        0
+    ].strip() or "audio/webm"
+    ext = audio_ext(download_url, content_type)
+    return transcribe_bytes(audio_resp.content, f"audio{ext}", content_type)
 
 
 if __name__ == "__main__":
@@ -89,6 +81,6 @@ if __name__ == "__main__":
 
     try:
         print(transcribe(sys.argv[1]))
-    except RuntimeError as e:
+    except (RuntimeError, requests.RequestException) as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
