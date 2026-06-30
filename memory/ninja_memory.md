@@ -16,6 +16,11 @@
   URLs need Graph `/shares/{u!base64url}/driveItem/content`.
 - **Transcription model**: gateway key is scoped; `openai/openai/gpt-4o-transcribe`
   (doubled prefix) is the working id. `whisper-1` / un-prefixed names → 401.
+- **Transcription core is shared**: `messaging/transcription.py` owns the model
+  id + endpoint + no-speech handling via `transcribe_bytes(content, filename,
+  content_type)` and `audio_ext(source, content_type)`. Teams + Slack both route
+  through it (PR #5). Each channel only does its own download. WhatsApp (#4)
+  should reuse it too — do NOT re-hardcode the model.
 
 ## Pending Items
 - **Issue #3** (filed) — Slack `transcribe.py:70` has the same `whisper-1` bug →
